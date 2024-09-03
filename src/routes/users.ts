@@ -1,8 +1,9 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { checkSessionIdExists } from "../middlewares/checkSessionIdExists";
+
 import { _knex } from "../database";
 import { randomUUID } from "node:crypto";
+import { checkSessionIdExists } from "../middlewares/checkSessionIdExists";
 
 export async function usersRoutes(app: FastifyInstance) {
 
@@ -91,17 +92,12 @@ export async function usersRoutes(app: FastifyInstance) {
                     path: "/",
                     maxAge: 60 * 60 * 24 * 7
                 });
-    
-                await _knex("tb_users")
-                    .where({ email })
-                    .update({ session_id });
             }
     
             const userResponse = {
                 id: foundUser.id,
                 name: foundUser.name,
-                email: foundUser.email,
-                session_id: foundUser.session_id
+                email: foundUser.email
             };
     
             return rep.status(201).send({ user: userResponse });

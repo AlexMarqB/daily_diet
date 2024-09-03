@@ -6,10 +6,10 @@ declare module 'knex/types/tables' {
             id: number;
             name: string;
             email: string;
-            session_id: string;
         },
         tb_meals: {
             id: number;
+            session_id: string;
             name: string;
             user_id: number;
             description: string;
