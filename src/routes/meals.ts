@@ -1,7 +1,8 @@
 import { FastifyInstance } from "fastify";
-import { checkSessionIdExists } from "../middlewares/checkSessionIdExists";
+
 import { z } from "zod";
 import { _knex } from "../database";
+import { checkSessionIdExists } from "../middlewares/checkSessionIdExists";
 
 export async function mealsRoutes(app: FastifyInstance) {
 	app.post(
