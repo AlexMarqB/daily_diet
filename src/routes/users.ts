@@ -55,14 +55,15 @@ export async function usersRoutes(app: FastifyInstance) {
         }
     )
 
-    app.get("/", 
+    //Lista todos os usuários
+    app.get("/all", 
         async (req, rep) => {
             const users = await _knex("tb_users").select("*")
 
             return rep.status(200).send(users)
         })
 
-    //login
+    //Loga um usuário
     app.post('/login', 
         {
             preHandler: [checkSessionIdExists]
