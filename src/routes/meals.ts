@@ -1,20 +1,15 @@
 import { FastifyInstance } from "fastify";
-
 import { z } from "zod";
 import { _knex } from "../database";
 import { checkSessionIdExists } from "../middlewares/checkSessionIdExists";
 
 export async function mealsRoutes(app: FastifyInstance) {
 	app.post(
-		"/:user_id",
+		"/",
+		{
+			preHandler: [checkSessionIdExists],
+		},
 		async (req, rep) => {
-
-            const getUserIdSchema = z.object({
-                user_id: z.coerce.number()
-            })
-
-            const {user_id} = getUserIdSchema.parse(req.params)
-
 			const createMealSchema = z.object({
 				name: z.string(),
 				description: z.string(),
@@ -30,14 +25,17 @@ export async function mealsRoutes(app: FastifyInstance) {
 					.send(`Data invalid! ${newMeal.error.format}`);
 			}
 
+			const { session_id } = req.cookies
+
 			const { name, description, made_at, in_diet } = newMeal.data;
 
+			// Aqui, você pode inserir a refeição diretamente sem precisar do user_id
 			await _knex("tb_meals").insert({
-                user_id,
 				name,
 				description,
-				made_at,
+				made_at: made_at.toISOString(),
 				in_diet,
+				session_id
 			});
 
 			return rep.status(200).send();
@@ -45,20 +43,18 @@ export async function mealsRoutes(app: FastifyInstance) {
 	);
 
 	app.put(
-		"/:user_id/:id",
+		"/:id",
 		{
 			preHandler: [checkSessionIdExists],
 		},
 		async (req, rep) => {
-
 			const getMealParamsSchema = z.object({
 				id: z.coerce.number(),
-                user_id: z.coerce.number()
 			});
 
-			const { id, user_id } = getMealParamsSchema.parse(req.params);
+			const { id } = getMealParamsSchema.parse(req.params);
 
-			const foundMeal = await _knex.where({ id, user_id}).first();
+			const foundMeal = await _knex("tb_meals").where({ id }).first();
 
 			if (!foundMeal) {
 				return rep.status(400).send("Meal not found");
@@ -66,9 +62,9 @@ export async function mealsRoutes(app: FastifyInstance) {
 
 			const updatedMealSchema = z.object({
 				name: z.string().default(foundMeal.name),
-				description: z.string(foundMeal.description),
-				made_at: z.date(foundMeal.made_at),
-				in_diet: z.boolean().default(true),
+				description: z.string().default(foundMeal.description),
+				made_at: z.date().default(new Date(foundMeal.made_at)),
+				in_diet: z.boolean().default(foundMeal.in_diet),
 			});
 
 			const updatedMeal = updatedMealSchema.safeParse(req.body);
@@ -81,10 +77,10 @@ export async function mealsRoutes(app: FastifyInstance) {
 
 			const { name, description, made_at, in_diet } = updatedMeal.data;
 
-			await foundMeal.update({
+			await _knex("tb_meals").where({ id }).update({
 				name,
 				description,
-				made_at,
+				made_at: made_at.toISOString(),
 				in_diet,
 			});
 
@@ -93,71 +89,60 @@ export async function mealsRoutes(app: FastifyInstance) {
 	);
 
 	app.get(
-		"/:user_id/:id",
+		"/:id",
 		{
 			preHandler: [checkSessionIdExists],
 		},
 		async (req, rep) => {
-
 			const getMealParamsSchema = z.object({
 				id: z.coerce.number(),
-                user_id: z.coerce.number()
 			});
 
-			const { id, user_id } = getMealParamsSchema.parse(req.params);
+			const { id } = getMealParamsSchema.parse(req.params);
 
-            const foundMeal = await _knex.where({ id, user_id }).first();
+			const foundMeal = await _knex("tb_meals").where({ id }).first();
 
 			if (!foundMeal) {
 				return rep.status(400).send("Meal not found");
 			}
 
-            const foundMealResponse = {
-                id: foundMeal.id,
-                name: foundMeal.name,
-                description: foundMeal.description,
-                made_at: foundMeal.made_at,
-                in_diet: foundMeal.in_diet
-            }
+			const foundMealResponse = {
+				id: foundMeal.id,
+				name: foundMeal.name,
+				description: foundMeal.description,
+				made_at: foundMeal.made_at,
+				in_diet: foundMeal.in_diet,
+			};
 
-            return rep.status(200).send({meal: foundMealResponse})
+			return rep.status(200).send({ meal: foundMealResponse });
 		}
 	);
 
-    app.get("/all/:user_id", 
-        async (req, rep) => {
+	app.get("/all", { preHandler: [checkSessionIdExists] }, async (req, rep) => {
+		const meals = await _knex("tb_meals").select();
 
-            const getMealParamsSchema = z.object({
-                user_id: z.coerce.number()
-			});
+		return rep.status(200).send(meals);
+	});
 
-			const { user_id } = getMealParamsSchema.parse(req.params);
-
-            const meals = _knex("tb_meals")
-            .where({user_id})
-
-            return rep.status(200).send(meals)
-        }
-    );
-
-    app.delete("/:user_id/:id",
-        async (req, rep) => {
-            const getMealParamsSchema = z.object({
+	app.delete(
+		"/:id",
+		{ preHandler: [checkSessionIdExists] },
+		async (req, rep) => {
+			const getMealParamsSchema = z.object({
 				id: z.coerce.number(),
-                user_id: z.coerce.number()
 			});
 
-			const { id, user_id } = getMealParamsSchema.parse(req.params);
+			const { id } = getMealParamsSchema.parse(req.params);
 
-            const foundMeal = await _knex("tb_meals").where({ id, user_id }).first();
+			const foundMeal = await _knex("tb_meals").where({ id }).first();
 
-            if (!foundMeal) {
+			if (!foundMeal) {
 				return rep.status(400).send("Meal not found");
 			}
 
-            await _knex("tb_meals").where({ id, user_id }).first().delete();
+			await _knex("tb_meals").where({ id }).delete();
 
-            return rep.status(200).send("Deleted")
-        }
-    )
+			return rep.status(200).send();
+		}
+	);
 }
