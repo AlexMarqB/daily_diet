@@ -4,13 +4,7 @@ import type { Knex } from "knex";
 export async function up(knex: Knex): Promise<void> {
     await knex.schema.createTable("tb_meals", (table) => {
         table.increments('id').primary()
-        
-        table.integer('user_id')
-        .unsigned()
-        .references('id')
-        .inTable('tb_users')
-        .notNullable()
-
+        table.uuid('session_id').index()
         table.string('name').unique()
         table.string('description')
         table.timestamp('made_at')

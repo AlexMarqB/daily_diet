@@ -3,105 +3,99 @@ import { z } from "zod";
 
 import { _knex } from "../database";
 import { randomUUID } from "node:crypto";
-import { checkSessionIdExists } from "../middlewares/checkSessionIdExists";
 
 export async function usersRoutes(app: FastifyInstance) {
+	//Criar um usuário
+	app.post("/", async (req, rep) => {
+		const userSchema = z.object({
+			name: z.string(),
+			email: z.string().email(),
+		});
 
-    //Criar um usuário
-    app.post("/",
-        async (req, rep) => {
-            
-            const userSchema = z.object({
-                name: z.string(),
-                email: z.string().email()
-            })
+		const newUser = userSchema.safeParse(req.body);
 
-            const newUser = userSchema.safeParse(req.body)
+		if (!newUser.success) {
+			return rep.status(400).send(`Invalid data! ${newUser.error.format}`);
+		}
 
-            if(!newUser.success)  {
-                return rep.status(400).send(`Invalid data! ${newUser.error.format}`)
-            }
+		const { name, email } = newUser.data;
 
-            const {name, email} = newUser.data
+		await _knex("tb_users").insert({
+			name,
+			email,
+		});
 
-            await _knex("tb_users").insert({
-                name,
-                email
-            })
+		return rep.status(201).send();
+	});
 
-            return rep.status(201).send();
-        }
-    )
+	//Buscar um usuário pelo email
+	app.get("/:email", async (req, rep) => {
+		const getUserParamsSchema = z.object({
+			email: z.string().email()
+		});
 
-    //Buscar um usuário pelo ID
-    app.get("/:id",
-        async (req, rep) => {
+		const { email } = getUserParamsSchema.parse(req.params);
 
-            const getUserParamsSchema = z.object({
-                id: z.coerce.number()
-            })
+		const foundUser = await _knex("tb_users").where({ email }).first();
 
-            const { id } = getUserParamsSchema.parse(req.params)
+		if (!foundUser) {
+			return rep.status(400).send("User not found!");
+		}
 
-            const foundUser = await _knex("tb_users")
-            .where({id})
-            .first()
+		return rep.status(200).send(foundUser);
+	});
 
-            if(!foundUser) {
-                return rep.status(400).send("User not found!")
-            }
+	app.post("/login", async (req, rep) => {
+		const loginUserSchema = z.object({
+			email: z.string().email(),
+		});
 
-            return rep.status(200).send(foundUser)
-        }
-    )
+		const { email } = loginUserSchema.parse(req.body);
 
-    //Lista todos os usuários
-    app.get("/all", 
-        async (req, rep) => {
-            const users = await _knex("tb_users").select("*")
+		const { session_id } = req.cookies;
 
-            return rep.status(200).send(users)
-        })
+		if (!session_id) {
+			const foundUser = await _knex("tb_users").where({ email }).first();
 
-    //Loga um usuário
-    app.post('/login', 
-        {
-            preHandler: [checkSessionIdExists]
-        },
-        async (req, rep) => {
-    
-            const loginUserSchema = z.object({
-                email: z.string().email()
-            })
-    
-            const { email } = loginUserSchema.parse(req.body)
-    
-            const foundUser = await _knex("tb_users")
-                .where({email})
-                .first();
-            
-            if (!foundUser) {
-                return rep.status(400).send("User not found!");
-            }
-    
-            let { session_id } = req.cookies;
-    
-            if (!session_id) {
-                session_id = randomUUID();
-    
-                rep.cookie("session_id", session_id, {
-                    path: "/",
-                    maxAge: 60 * 60 * 24 * 7
-                });
-            }
-    
-            const userResponse = {
-                id: foundUser.id,
-                name: foundUser.name,
-                email: foundUser.email
-            };
-    
-            return rep.status(201).send({ user: userResponse });
-        }
-    );
+
+			if (!foundUser) {
+				return rep.status(400).send("User not found!");
+			}
+
+
+			const newSessionId = randomUUID();
+			rep.cookie("session_id", newSessionId, {
+				path: "/",
+				maxAge: 60 * 60 * 24 * 7 //7 dias
+			});
+
+
+			const userResponse = {
+				id: foundUser.id,
+				name: foundUser.name,
+				email: foundUser.email,
+			};
+
+			return rep.status(200).send(userResponse);
+		}
+
+		const foundUser = await _knex("tb_users").where({ email }).first();
+
+		if (!foundUser) {
+			return rep.status(400).send("User not found!");
+		}
+
+		rep.cookie("session_id", session_id, {
+			path: "/",
+			maxAge: 60 * 60 * 24 * 7 // 7 dias
+		});
+
+		const userResponse = {
+			id: foundUser.id,
+			name: foundUser.name,
+			email: foundUser.email,
+		};
+
+		return rep.status(200).send(userResponse);
+	});
 }
