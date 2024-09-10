@@ -49,6 +49,7 @@ describe("Meals routes test", () => {
 				description: "Testing a meal",
 				made_at: new Date().toISOString(),
 				in_diet: true,
+
 			});
 
 		expect(createMealResponse.status).toEqual(200);

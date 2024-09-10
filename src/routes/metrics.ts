@@ -9,6 +9,7 @@ export async function metricRoutes(app: FastifyInstance) {
 
 		const allCreatedMealsBySessionId = await _knex
 			.select()
+			.from("tb_meals")  // Especificar a tabela tb_meals
 			.where({ session_id });
 
 		const bestInDietSequence = () => {
@@ -46,7 +47,7 @@ export async function metricRoutes(app: FastifyInstance) {
 			totalMealsOutDiet: allCreatedMealsBySessionId.filter(
 				(item) => !item.in_diet
 			).length,
-			bestInDietSequence,
+			bestInDietSequence: bestInDietSequence(), // Corrigido para chamar a função
 		};
 
 		return rep.status(200).send(metrics);

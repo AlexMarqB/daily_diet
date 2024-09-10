@@ -3,9 +3,9 @@ import { Knex } from "knex";
 declare module 'knex/types/tables' {
     export interface Tables {
         tb_users: {
-            id: number;
             name: string;
             email: string;
+            session_id: string;
         },
         tb_meals: {
             id: number;

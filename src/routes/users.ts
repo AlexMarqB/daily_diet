@@ -54,14 +54,13 @@ export async function usersRoutes(app: FastifyInstance) {
 
 		const { session_id } = req.cookies;
 
+		const foundUser = await _knex("tb_users").where({ email }).first();
+
+		if (!foundUser) {
+			return rep.status(400).send("User not found!");
+		}
+
 		if (!session_id) {
-			const foundUser = await _knex("tb_users").where({ email }).first();
-
-
-			if (!foundUser) {
-				return rep.status(400).send("User not found!");
-			}
-
 
 			const newSessionId = randomUUID();
 			rep.cookie("session_id", newSessionId, {
@@ -69,20 +68,17 @@ export async function usersRoutes(app: FastifyInstance) {
 				maxAge: 60 * 60 * 24 * 7 //7 dias
 			});
 
+			await _knex("tb_users")
+			.where(foundUser)
+			.update({session_id:newSessionId})
+
 
 			const userResponse = {
-				id: foundUser.id,
 				name: foundUser.name,
 				email: foundUser.email,
 			};
 
 			return rep.status(200).send(userResponse);
-		}
-
-		const foundUser = await _knex("tb_users").where({ email }).first();
-
-		if (!foundUser) {
-			return rep.status(400).send("User not found!");
 		}
 
 		rep.cookie("session_id", session_id, {
@@ -91,7 +87,6 @@ export async function usersRoutes(app: FastifyInstance) {
 		});
 
 		const userResponse = {
-			id: foundUser.id,
 			name: foundUser.name,
 			email: foundUser.email,
 		};

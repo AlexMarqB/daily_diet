@@ -18,8 +18,9 @@ describe("User routes tests", () => {
 	});
 
 	beforeEach(async () => {
-		if (fs.existsSync("../../db/test.db")) {
-			fs.unlinkSync("../../db/test.db");
+		const dbPath = "../../db/test.db";
+		if (fs.existsSync(dbPath)) {
+			fs.unlinkSync(dbPath);
 		}
 		execSync("npm run knex migrate:rollback --all");
 		execSync("npm run knex migrate:latest");
@@ -74,7 +75,11 @@ describe("User routes tests", () => {
 
 		const cookies = logInUserByEmailResponse.get("Set-Cookie");
 
+		if(!cookies) {
+			throw new Error("Cookies not defined")
+		}
 		expect(cookies).toBeDefined();
+		expect(cookies[0]).toMatch(/session_id=/);
 		logSuccess("Session cookie set successfully");
 	});
 });
